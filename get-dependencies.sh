@@ -6,21 +6,70 @@ ARCH=$(uname -m)
 
 echo "Installing package dependencies..."
 echo "---------------------------------------------------------------"
-# pacman -Syu --noconfirm PACKAGESHERE
+pacman -Syu --noconfirm \
+	cmake 			    \
+	glslang 		    \
+	glu 				\
+	hicolor-icon-theme  \
+	libepoxy		 	\
+	libsamplerate 		\
+	libslirp 			\
+	meson 				\
+	nlohmann-json 		\
+	python-distlib 		\
+	python-yaml 		\
+	sdl3 				\
+	tomlplusplus 		\
+	vulkan-headers 		\
+	vulkan-icd-loader
 
 echo "Installing debloated packages..."
 echo "---------------------------------------------------------------"
-get-debloated-pkgs --add-common --prefer-nano
+get-debloated-pkgs --add-common --prefer-nano libdecor-mini
 
-# Comment this out if you need an AUR package
-#make-aur-package PACKAGENAME
+echo "Building xemu..."
+echo "---------------------------------------------------------------"
+REPO="https://github.com/xemu-project/xemu"
+if [ "${DEVEL_RELEASE-}" = 1 ]; then
+    echo "Making nightly build of xemu..."
+    echo "---------------------------------------------------------------"
+    VERSION="$(git ls-remote "$REPO" HEAD | cut -c 1-9 | head -1)"
+    git clone --depth 1 "$REPO" ./xemu
+else
+	echo "Making stable build of xemu..."
+	VERSION="$(git ls-remote --tags --sort="v:refname" "$REPO" | tail -n1 | sed 's/.*\///; s/\^{}//; s/^v//')"
+	git clone --branch v"$VERSION" --single-branch --depth 1 "$REPO" ./xemu
+fi
+echo "$VERSION" > ~/version
 
-# If the application needs to be manually built that has to be done down here
+mkdir -p ./AppDir/bin
+cd ./xemu
 
-# if you also have to make nightly releases check for DEVEL_RELEASE = 1
-#
-# if [ "${DEVEL_RELEASE-}" = 1 ]; then
-# 	nightly build steps
-# else
-# 	regular build steps
-# fi
+for file in subprojects/SPIRV-Reflect.wrap \
+            subprojects/VulkanMemoryAllocator.wrap \
+            subprojects/glslang.wrap \
+            subprojects/nv2a_vsh_cpu.wrap \
+            subprojects/volk.wrap; do
+    sed '/\[wrap-/a\
+method=cmake
+' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+done
+
+meson subprojects download
+mkdir -p ../build
+python scripts/gen-license.py > XEMU_LICENSE
+# fix bug with cmake subprojects
+sed -i '/CPU_CFLAGS="-m64"/d' configure
+
+cd ../build
+../xemu/configure \
+	--audio-drv-list="sdl" \
+	--disable-docs \
+	--disable-download \
+	--disable-werror \
+	--enable-pie \
+	--extra-cflags="-DXBOX=1" \
+	--target-list="i386-softmmu" \
+	-Dbuildtype=plain
+make qemu-system-i386 -j$(nproc)
+mv -v qemu-system-i386 ../AppDir/bin/xemu
