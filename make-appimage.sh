@@ -9,6 +9,7 @@ export ADD_HOOKS="self-updater.bg.hook"
 export UPINFO="gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}|latest|*$ARCH.AppImage.zsync"
 export ICON=/usr/share/icons/hicolor/scalable/apps/xemu.svg
 export DESKTOP=/usr/share/applications/xemu.desktop
+export STARTUPWMCLASS=
 export DEPLOY_OPENGL=1
 export DEPLOY_VULKAN=1
 
