@@ -56,7 +56,17 @@ echo "$VERSION" > ~/version
 
 mkdir -p ./AppDir/bin
 cd ./xemu
-sed -i '/\[wrap-/a method=cmake' subprojects/{SPIRV-Reflect,VulkanMemoryAllocator,glslang,nv2a_vsh_cpu,volk}.wrap
+
+for file in subprojects/SPIRV-Reflect.wrap \
+            subprojects/VulkanMemoryAllocator.wrap \
+            subprojects/glslang.wrap \
+            subprojects/nv2a_vsh_cpu.wrap \
+            subprojects/volk.wrap; do
+    sed '/\[wrap-/a\
+method=cmake
+' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+done
+
 meson subprojects download
 mkdir -p ../build
 python scripts/gen-license.py > XEMU_LICENSE
